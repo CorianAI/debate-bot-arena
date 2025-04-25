@@ -7,7 +7,7 @@ export interface AIProfile {
   prompt: string;
   color: string;
   model?: string;
-  endpoint?: string;
+  endpoint?: 'openai' | 'anthropic' | 'openrouter';
 }
 
 export interface Comment {
@@ -47,4 +47,3 @@ export interface OpenAISettings {
   temperature: number;
   maxTokens: number;
 }
-

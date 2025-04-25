@@ -26,6 +26,9 @@ export const AIProfileCard: React.FC<AIProfileCardProps> = ({
           {profile.avatar}
         </div>
         <span className="font-medium">{profile.name}</span>
+        {profile.endpoint && (
+          <Badge variant="outline" className="text-xs">{profile.endpoint}</Badge>
+        )}
       </div>
     );
   }
@@ -42,12 +45,20 @@ export const AIProfileCard: React.FC<AIProfileCardProps> = ({
           </div>
           <div>
             <h3 className="font-bold text-lg">{profile.name}</h3>
+            {profile.model && (
+              <p className="text-xs text-muted-foreground">{profile.model}</p>
+            )}
           </div>
         </div>
       </CardHeader>
       <CardContent>
         <Badge variant="outline" className="mb-2">{profile.personality}</Badge>
         <p className="text-sm text-muted-foreground">Prompt: {profile.prompt}</p>
+        {profile.endpoint && (
+          <p className="text-xs text-muted-foreground mt-2">
+            Endpoint: {profile.endpoint} • Model: {profile.model}
+          </p>
+        )}
       </CardContent>
     </Card>
   );
@@ -65,6 +76,8 @@ export const AIProfileForm: React.FC<AIProfileFormProps> = ({ profile, onSave, o
   const [personality, setPersonality] = React.useState(profile?.personality || '');
   const [prompt, setPrompt] = React.useState(profile?.prompt || '');
   const [color, setColor] = React.useState(profile?.color || 'bg-blue-500');
+  const [endpoint, setEndpoint] = React.useState(profile?.endpoint || 'openai');
+  const [model, setModel] = React.useState(profile?.model || 'gpt-4o-mini');
 
   const colorOptions = [
     'bg-red-500', 'bg-orange-500', 'bg-amber-500', 'bg-yellow-500', 
@@ -89,7 +102,46 @@ export const AIProfileForm: React.FC<AIProfileFormProps> = ({ profile, onSave, o
       personality,
       prompt,
       color,
+      endpoint,
+      model,
     });
+  };
+
+  const endpointOptions = [
+    { value: 'openai', label: 'OpenAI' },
+    { value: 'anthropic', label: 'Anthropic' },
+    { value: 'openrouter', label: 'OpenRouter' },
+  ];
+
+  const getModelOptions = (selectedEndpoint: string) => {
+    switch(selectedEndpoint) {
+      case 'openai':
+        return [
+          { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+          { value: 'gpt-4o', label: 'GPT-4o' },
+          { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
+          { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
+        ];
+      case 'anthropic':
+        return [
+          { value: 'claude-3-opus', label: 'Claude 3 Opus' },
+          { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
+          { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
+        ];
+      case 'openrouter':
+        return [
+          { value: 'gpt-4o', label: 'OpenAI GPT-4o' },
+          { value: 'claude-3-opus', label: 'Anthropic Claude 3 Opus' },
+          { value: 'claude-3-sonnet', label: 'Anthropic Claude 3 Sonnet' },
+          { value: 'mixtral-8x7b', label: 'Mistral Mixtral 8x7B' },
+          { value: 'llama-3-70b', label: 'Meta Llama 3 70B' },
+          { value: 'command-r', label: 'Cohere Command R' },
+        ];
+      default:
+        return [
+          { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+        ];
+    }
   };
 
   return (
@@ -152,6 +204,42 @@ export const AIProfileForm: React.FC<AIProfileFormProps> = ({ profile, onSave, o
           className="border rounded p-2 w-full"
           required
         />
+      </div>
+
+      <div className="grid gap-2">
+        <label htmlFor="endpoint" className="text-sm font-medium">AI Endpoint</label>
+        <select 
+          id="endpoint" 
+          value={endpoint}
+          onChange={(e) => {
+            setEndpoint(e.target.value);
+            // Reset model when endpoint changes
+            setModel(getModelOptions(e.target.value)[0].value);
+          }}
+          className="border rounded p-2 w-full"
+        >
+          {endpointOptions.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div className="grid gap-2">
+        <label htmlFor="model" className="text-sm font-medium">AI Model</label>
+        <select 
+          id="model" 
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+          className="border rounded p-2 w-full"
+        >
+          {getModelOptions(endpoint).map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="grid gap-2">
