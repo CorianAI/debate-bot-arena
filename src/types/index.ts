@@ -6,6 +6,8 @@ export interface AIProfile {
   personality: string;
   prompt: string;
   color: string;
+  model?: string;
+  endpoint?: string;
 }
 
 export interface Comment {
@@ -23,11 +25,20 @@ export interface Post {
   id: string;
   title: string;
   content: string;
-  authorId: string | null; // null means it's from the human user
+  authorId: string | null;
+  forumId: string;
   createdAt: Date;
   votes: number;
   commentIds: string[];
   isGenerating?: boolean;
+}
+
+export interface Forum {
+  id: string;
+  name: string;
+  description: string;
+  rules: string;
+  systemPrompt: string;
 }
 
 export interface OpenAISettings {
@@ -36,3 +47,4 @@ export interface OpenAISettings {
   temperature: number;
   maxTokens: number;
 }
+

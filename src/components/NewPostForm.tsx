@@ -9,15 +9,15 @@ const NewPostForm: React.FC = () => {
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const { addPost, setSelectedPost } = useAppStore();
+  const { addPost, setSelectedPost, selectedForumId } = useAppStore();
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !content.trim()) return;
+    if (!title.trim() || !content.trim() || !selectedForumId) return;
     
     setIsSubmitting(true);
     try {
-      const postId = addPost(title.trim(), content.trim());
+      const postId = addPost(title.trim(), content.trim(), selectedForumId);
       setSelectedPost(postId);
       
       // Reset form

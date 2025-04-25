@@ -1,23 +1,26 @@
-
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { AIProfile, Comment, Post, OpenAISettings } from '@/types';
+import { AIProfile, Comment, Post, Forum, OpenAISettings } from '@/types';
 
 interface AppState {
   posts: Record<string, Post>;
   comments: Record<string, Comment>;
   profiles: Record<string, AIProfile>;
+  forums: Record<string, Forum>;
   settings: OpenAISettings;
   selectedPostId: string | null;
+  selectedForumId: string | null;
   isProcessing: boolean;
   
   // Actions
-  addPost: (title: string, content: string) => string;
+  addPost: (title: string, content: string, forumId: string) => string;
+  addForum: (name: string, description: string, rules: string, systemPrompt: string) => string;
   addComment: (content: string, postId: string, authorId: string, parentId?: string | null) => string;
   addProfile: (profile: Omit<AIProfile, 'id'>) => string;
   updateProfile: (id: string, profile: Partial<AIProfile>) => void;
   setSelectedPost: (postId: string | null) => void;
+  setSelectedForum: (forumId: string | null) => void;
   updatePost: (id: string, post: Partial<Post>) => void;
   updateComment: (id: string, comment: Partial<Comment>) => void;
   updateSettings: (settings: Partial<OpenAISettings>) => void;
@@ -38,6 +41,8 @@ const defaultProfiles: AIProfile[] = [
     personality: 'Always questions assumptions and pokes holes in ideas',
     prompt: 'You are highly skeptical and critical. Find flaws and weaknesses in the argument presented.',
     color: 'bg-red-500',
+    model: 'gpt-4o-mini',
+    endpoint: 'openai'
   },
   {
     id: '2',
@@ -46,6 +51,8 @@ const defaultProfiles: AIProfile[] = [
     personality: 'Always sees the positive side and defends new ideas',
     prompt: 'You are extremely optimistic and supportive. Defend the idea with enthusiasm and highlight its potential benefits.',
     color: 'bg-green-500',
+    model: 'claude-3-opus',
+    endpoint: 'anthropic'
   },
   {
     id: '3',
@@ -54,6 +61,8 @@ const defaultProfiles: AIProfile[] = [
     personality: 'Focuses on practical implementation and reality',
     prompt: 'You are practical and realistic. Evaluate the idea based on feasibility and implementation challenges.',
     color: 'bg-blue-500',
+    model: 'gpt-4o-mini',
+    endpoint: 'openai'
   },
   {
     id: '4',
@@ -62,6 +71,8 @@ const defaultProfiles: AIProfile[] = [
     personality: 'Takes contrary positions for the sake of debate',
     prompt: 'You play devil\'s advocate. Present counterarguments that challenge the main idea.',
     color: 'bg-purple-500',
+    model: 'claude-3-opus',
+    endpoint: 'anthropic'
   },
   {
     id: '5',
@@ -70,7 +81,27 @@ const defaultProfiles: AIProfile[] = [
     personality: 'Concerned with accuracy and truthfulness',
     prompt: 'You are detail-oriented and focused on facts. Question any unsupported claims or logical fallacies.',
     color: 'bg-yellow-500',
+    model: 'gpt-4o-mini',
+    endpoint: 'openai'
   },
+];
+
+// Default forums
+const defaultForums: Forum[] = [
+  {
+    id: '1',
+    name: 'Project Ideas',
+    description: 'Share and discuss project ideas',
+    rules: 'Be constructive with criticism. No personal attacks.',
+    systemPrompt: 'This is a forum for discussing project ideas. Consider technical feasibility, market potential, and implementation challenges in your responses.'
+  },
+  {
+    id: '2',
+    name: 'Tech Debate',
+    description: 'Debate technology choices and trends',
+    rules: 'Back up claims with examples. Stay on topic.',
+    systemPrompt: 'This is a forum for debating technology choices. Consider scalability, maintainability, and real-world applications in your responses.'
+  }
 ];
 
 export const useAppStore = create<AppState>()(
@@ -79,6 +110,7 @@ export const useAppStore = create<AppState>()(
       posts: {},
       comments: {},
       profiles: Object.fromEntries(defaultProfiles.map(profile => [profile.id, profile])),
+      forums: Object.fromEntries(defaultForums.map(forum => [forum.id, forum])),
       settings: {
         apiKey: '',
         defaultModel: 'gpt-4o-mini',
@@ -86,15 +118,17 @@ export const useAppStore = create<AppState>()(
         maxTokens: 500,
       },
       selectedPostId: null,
+      selectedForumId: null,
       isProcessing: false,
 
-      addPost: (title, content) => {
+      addPost: (title, content, forumId) => {
         const id = uuidv4();
         const newPost: Post = {
           id,
           title,
           content,
           authorId: null,
+          forumId,
           createdAt: new Date(),
           votes: 0,
           commentIds: [],
@@ -106,6 +140,26 @@ export const useAppStore = create<AppState>()(
             [id]: newPost
           },
           selectedPostId: id
+        }));
+
+        return id;
+      },
+
+      addForum: (name, description, rules, systemPrompt) => {
+        const id = uuidv4();
+        const newForum: Forum = {
+          id,
+          name,
+          description,
+          rules,
+          systemPrompt
+        };
+
+        set(state => ({
+          forums: {
+            ...state.forums,
+            [id]: newForum
+          }
         }));
 
         return id;
@@ -200,6 +254,10 @@ export const useAppStore = create<AppState>()(
 
       setSelectedPost: (postId) => {
         set({ selectedPostId: postId });
+      },
+
+      setSelectedForum: (forumId) => {
+        set({ selectedForumId: forumId });
       },
 
       updatePost: (id, post) => {
