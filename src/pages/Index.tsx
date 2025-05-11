@@ -1,6 +1,6 @@
 
 import React, { useEffect } from 'react';
-import { useAppStore } from '@/utils/store';
+import { useAppStore } from '@/store';
 import Header from '@/components/Header';
 import PostCard from '@/components/Post';
 import NewPostForm from '@/components/NewPostForm';

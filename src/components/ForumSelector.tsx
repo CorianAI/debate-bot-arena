@@ -2,7 +2,7 @@
 import React from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useAppStore } from '@/utils/store';
+import { useAppStore } from '@/store';
 import { Plus } from 'lucide-react';
 import {
   Dialog,

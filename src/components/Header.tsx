@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { useAppStore } from '@/utils/store';
+import { useAppStore } from '@/store';
 import { 
   Dialog,
   DialogContent,

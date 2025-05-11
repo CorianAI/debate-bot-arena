@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ThumbsUp, ThumbsDown, MessageSquare, Loader2 } from 'lucide-react';
-import { useAppStore } from '@/utils/store';
+import { useAppStore } from '@/store';
 import { generateMultipleResponses } from '@/utils/aiService';
-import { Post as PostType } from '@/types';
+import { Post as PostType, Forum } from '@/types';
 import { AIProfileCard } from './AIProfile';
 import CommentCard from './Comment';
 import { cn } from '@/lib/utils';
@@ -15,9 +15,10 @@ import { cn } from '@/lib/utils';
 interface PostCardProps {
   post: PostType;
   isCompact?: boolean;
+  forum?: Forum;
 }
 
-export const PostCard: React.FC<PostCardProps> = ({ post, isCompact = false }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, isCompact = false, forum }) => {
   const { 
     setSelectedPost, 
     votePost, 
@@ -107,7 +108,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, isCompact = false }) =
         </CardFooter>
       </Card>
 
-      <AIDebateSection postId={post.id} />
+      <AIDebateSection postId={post.id} forum={forum} />
 
       <div className="mt-6">
         <h2 className="text-xl font-bold mb-4">Comments</h2>
@@ -127,9 +128,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post, isCompact = false }) =
 
 interface AIDebateSectionProps {
   postId: string;
+  forum?: Forum;
 }
 
-const AIDebateSection: React.FC<AIDebateSectionProps> = ({ postId }) => {
+const AIDebateSection: React.FC<AIDebateSectionProps> = ({ postId, forum }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [selectedProfiles, setSelectedProfiles] = useState<string[]>([]);
   
@@ -170,7 +172,7 @@ const AIDebateSection: React.FC<AIDebateSectionProps> = ({ postId }) => {
       // Generate AI responses
       await generateMultipleResponses(
         post.title + '\n\n' + post.content,
-        '',
+        forum?.systemPrompt || '',
         selectedProfiles.map(id => profiles[id]).filter(Boolean),
         settings,
         (profileId, response) => {
