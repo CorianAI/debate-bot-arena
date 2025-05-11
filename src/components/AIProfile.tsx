@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { AIProfile as AIProfileType } from '@/types';
+import { useAppStore } from '@/store';
 
 interface AIProfileCardProps {
   profile: AIProfileType;
@@ -71,12 +72,13 @@ interface AIProfileFormProps {
 }
 
 export const AIProfileForm: React.FC<AIProfileFormProps> = ({ profile, onSave, onCancel }) => {
+  const { settings } = useAppStore();
   const [name, setName] = React.useState(profile?.name || '');
   const [avatar, setAvatar] = React.useState(profile?.avatar || '😊');
   const [personality, setPersonality] = React.useState(profile?.personality || '');
   const [prompt, setPrompt] = React.useState(profile?.prompt || '');
   const [color, setColor] = React.useState(profile?.color || 'bg-blue-500');
-  const [endpoint, setEndpoint] = React.useState(profile?.endpoint || 'openai');
+  const [endpoint, setEndpoint] = React.useState<string>(profile?.endpoint || 'openai');
   const [model, setModel] = React.useState(profile?.model || 'gpt-4o-mini');
 
   const colorOptions = [
@@ -107,41 +109,26 @@ export const AIProfileForm: React.FC<AIProfileFormProps> = ({ profile, onSave, o
     });
   };
 
-  const endpointOptions = [
-    { value: 'openai', label: 'OpenAI' },
-    { value: 'anthropic', label: 'Anthropic' },
-    { value: 'openrouter', label: 'OpenRouter' },
-  ];
+  // Get all provider options from settings
+  const providers = Object.values(settings.providers || {});
+  const providerOptions = providers.map(provider => ({
+    value: provider.id,
+    label: provider.name
+  }));
 
-  const getModelOptions = (selectedEndpoint: string) => {
-    switch(selectedEndpoint) {
-      case 'openai':
-        return [
-          { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-          { value: 'gpt-4o', label: 'GPT-4o' },
-          { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-          { value: 'gpt-3.5-turbo', label: 'GPT-3.5 Turbo' },
-        ];
-      case 'anthropic':
-        return [
-          { value: 'claude-3-opus', label: 'Claude 3 Opus' },
-          { value: 'claude-3-sonnet', label: 'Claude 3 Sonnet' },
-          { value: 'claude-3-haiku', label: 'Claude 3 Haiku' },
-        ];
-      case 'openrouter':
-        return [
-          { value: 'gpt-4o', label: 'OpenAI GPT-4o' },
-          { value: 'claude-3-opus', label: 'Anthropic Claude 3 Opus' },
-          { value: 'claude-3-sonnet', label: 'Anthropic Claude 3 Sonnet' },
-          { value: 'mixtral-8x7b', label: 'Mistral Mixtral 8x7B' },
-          { value: 'llama-3-70b', label: 'Meta Llama 3 70B' },
-          { value: 'command-r', label: 'Cohere Command R' },
-        ];
-      default:
-        return [
-          { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-        ];
+  // Get model options based on selected provider
+  const getModelOptions = () => {
+    const selectedProvider = providers.find(p => p.id === endpoint || p.name.toLowerCase() === endpoint.toLowerCase());
+    
+    if (selectedProvider && selectedProvider.models && selectedProvider.models.length > 0) {
+      return selectedProvider.models.map(m => ({ value: m, label: m }));
     }
+    
+    // Default models if no provider selected or provider has no models
+    return [
+      { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+      { value: 'gpt-4o', label: 'GPT-4o' },
+    ];
   };
 
   return (
@@ -207,18 +194,21 @@ export const AIProfileForm: React.FC<AIProfileFormProps> = ({ profile, onSave, o
       </div>
 
       <div className="grid gap-2">
-        <label htmlFor="endpoint" className="text-sm font-medium">AI Endpoint</label>
+        <label htmlFor="endpoint" className="text-sm font-medium">AI Provider</label>
         <select 
           id="endpoint" 
           value={endpoint}
           onChange={(e) => {
             setEndpoint(e.target.value);
-            // Reset model when endpoint changes
-            setModel(getModelOptions(e.target.value)[0].value);
+            // Reset model when endpoint changes to first model from the selected provider
+            const provider = providers.find(p => p.id === e.target.value);
+            if (provider && provider.models && provider.models.length > 0) {
+              setModel(provider.models[0]);
+            }
           }}
           className="border rounded p-2 w-full"
         >
-          {endpointOptions.map((option) => (
+          {providerOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>
@@ -234,7 +224,7 @@ export const AIProfileForm: React.FC<AIProfileFormProps> = ({ profile, onSave, o
           onChange={(e) => setModel(e.target.value)}
           className="border rounded p-2 w-full"
         >
-          {getModelOptions(endpoint).map((option) => (
+          {getModelOptions().map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

@@ -7,7 +7,7 @@ export interface AIProfile {
   prompt: string;
   color: string;
   model?: string;
-  endpoint?: 'openai' | 'anthropic' | 'openrouter';
+  endpoint?: 'openai' | 'anthropic' | 'openrouter' | string;
 }
 
 export interface Comment {
@@ -41,9 +41,21 @@ export interface Forum {
   systemPrompt: string;
 }
 
+export interface LLMProvider {
+  id: string;
+  name: string;
+  endpoint: string;
+  apiKey: string;
+  models: string[];
+  isDefault: boolean;
+}
+
 export interface OpenAISettings {
   apiKey: string;
   defaultModel: string;
   temperature: number;
   maxTokens: number;
+  minThreadReplies: number;
+  maxThreadReplies: number;
+  providers: Record<string, LLMProvider>;
 }

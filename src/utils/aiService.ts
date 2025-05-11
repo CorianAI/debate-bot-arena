@@ -1,5 +1,5 @@
 
-import { OpenAISettings, AIProfile, Forum } from '@/types';
+import { OpenAISettings, AIProfile, Forum, LLMProvider } from '@/types';
 
 export async function generateAIResponse(
   prompt: string,
@@ -9,52 +9,67 @@ export async function generateAIResponse(
   forum?: Forum
 ): Promise<string> {
   try {
-    if (!settings.apiKey) {
-      throw new Error('API key is not set');
+    // Find the matching provider for this endpoint
+    const providers = Object.values(settings.providers);
+    let provider: LLMProvider | undefined;
+    
+    // First try to find exact match by endpoint name
+    if (aiProfile.endpoint) {
+      provider = providers.find(p => 
+        p.name.toLowerCase() === aiProfile.endpoint?.toLowerCase() ||
+        p.id === aiProfile.endpoint
+      );
+    }
+    
+    // If no match, use the default provider
+    if (!provider) {
+      provider = providers.find(p => p.isDefault) || providers[0];
+    }
+    
+    if (!provider || !provider.apiKey) {
+      throw new Error(`No API key found for provider: ${aiProfile.endpoint || 'default'}`);
     }
 
     const systemPrompt = `${aiProfile.prompt}${forum ? `\n\nForum context: ${forum.systemPrompt}\nForum rules: ${forum.rules}` : ''} Your name is ${aiProfile.name}. You are participating in a discussion forum. Keep your response under 3 paragraphs and stay in character.`;
 
-    // Set endpoint based on AI profile configuration
-    const endpoint = aiProfile.endpoint === 'openai' 
-      ? 'https://api.openai.com/v1/chat/completions'
-      : aiProfile.endpoint === 'anthropic'
-      ? 'https://api.anthropic.com/v1/messages'
-      : 'https://api.openrouter.ai/api/v1/chat/completions';
+    // Set endpoint from the provider
+    const endpoint = provider.endpoint;
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     };
 
-    // Set appropriate headers based on endpoint
-    if (aiProfile.endpoint === 'openai') {
-      headers['Authorization'] = `Bearer ${settings.apiKey}`;
-    } else if (aiProfile.endpoint === 'anthropic') {
-      headers['x-api-key'] = settings.apiKey;
+    // Set appropriate headers based on provider type
+    if (provider.name.toLowerCase() === 'openai') {
+      headers['Authorization'] = `Bearer ${provider.apiKey}`;
+    } else if (provider.name.toLowerCase() === 'anthropic') {
+      headers['x-api-key'] = provider.apiKey;
       headers['anthropic-version'] = '2023-06-01';
-    } else {
-      // OpenRouter
-      headers['Authorization'] = `Bearer ${settings.apiKey}`;
+    } else if (provider.name.toLowerCase() === 'openrouter') {
+      headers['Authorization'] = `Bearer ${provider.apiKey}`;
       headers['HTTP-Referer'] = window.location.href;
       headers['X-Title'] = 'AI Debate Forum';
+    } else {
+      // Generic provider, assume OpenAI-like API
+      headers['Authorization'] = `Bearer ${provider.apiKey}`;
     }
 
-    // Format request body based on endpoint
+    // Format request body based on provider type
     let requestBody: any;
-    if (aiProfile.endpoint === 'anthropic') {
+    if (provider.name.toLowerCase() === 'anthropic') {
       requestBody = {
         messages: [{
           role: 'user',
           content: `Context of discussion: ${context}\n\nRespond to this: ${prompt}`
         }],
-        model: aiProfile.model || 'claude-3-opus',
+        model: aiProfile.model || provider.models[0],
         system: systemPrompt,
         max_tokens: settings.maxTokens
       };
     } else {
       // OpenAI and OpenRouter use the same format
       requestBody = {
-        model: aiProfile.model || settings.defaultModel,
+        model: aiProfile.model || provider.models[0],
         messages: [
           {
             role: 'system',
@@ -78,17 +93,17 @@ export async function generateAIResponse(
 
     if (!response.ok) {
       const error = await response.json();
-      throw new Error(error.error?.message || `Failed to generate response from ${aiProfile.endpoint}`);
+      throw new Error(error.error?.message || `Failed to generate response from ${provider.name}`);
     }
 
     const data = await response.json();
     
-    // Parse response based on endpoint
-    return aiProfile.endpoint === 'anthropic' 
+    // Parse response based on provider type
+    return provider.name.toLowerCase() === 'anthropic' 
       ? data.content[0].text
       : data.choices[0].message.content.trim();
   } catch (error) {
-    console.error(`Error generating ${aiProfile.name} response from ${aiProfile.endpoint}:`, error);
+    console.error(`Error generating ${aiProfile.name} response:`, error);
     return `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`;
   }
 }
@@ -118,4 +133,11 @@ export async function generateMultipleResponses(
   }
   
   return responses;
+}
+
+// Function to generate a random number of thread replies
+export function getRandomThreadCount(settings: OpenAISettings): number {
+  const min = settings.minThreadReplies || 2;
+  const max = settings.maxThreadReplies || 5;
+  return Math.floor(Math.random() * (max - min + 1)) + min;
 }

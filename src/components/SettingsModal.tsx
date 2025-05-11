@@ -5,22 +5,28 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Slider } from '@/components/ui/slider';
-import { useAppStore } from '@/utils/store';
+import { useAppStore } from '@/store';
 import { Plus, Trash2, Edit } from 'lucide-react';
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AIProfileCard, AIProfileForm } from './AIProfile';
 import { AIProfile } from '@/types';
+import LLMProviderManager from './LLMProviderManager';
 
 const SettingsModal: React.FC = () => {
   return (
     <Tabs defaultValue="api" className="w-full">
-      <TabsList className="grid w-full grid-cols-2">
+      <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger value="api">API Settings</TabsTrigger>
+        <TabsTrigger value="providers">LLM Providers</TabsTrigger>
         <TabsTrigger value="profiles">AI Profiles</TabsTrigger>
       </TabsList>
       
       <TabsContent value="api">
         <OpenAISettings />
+      </TabsContent>
+      
+      <TabsContent value="providers">
+        <LLMProviderManager />
       </TabsContent>
       
       <TabsContent value="profiles">
@@ -36,6 +42,8 @@ const OpenAISettings: React.FC = () => {
   const [model, setModel] = useState(settings.defaultModel);
   const [temperature, setTemperature] = useState(settings.temperature);
   const [maxTokens, setMaxTokens] = useState(settings.maxTokens);
+  const [minThreadReplies, setMinThreadReplies] = useState(settings.minThreadReplies || 2);
+  const [maxThreadReplies, setMaxThreadReplies] = useState(settings.maxThreadReplies || 5);
   
   const handleSave = () => {
     updateSettings({
@@ -43,6 +51,8 @@ const OpenAISettings: React.FC = () => {
       defaultModel: model,
       temperature,
       maxTokens,
+      minThreadReplies,
+      maxThreadReplies,
     });
   };
   
@@ -117,6 +127,41 @@ const OpenAISettings: React.FC = () => {
         <p className="text-xs text-muted-foreground">
           Maximum number of tokens to generate in responses.
         </p>
+      </div>
+      
+      <div className="space-y-2 border-t pt-4 mt-4">
+        <h3 className="font-medium">Thread Generation Settings</h3>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <Label htmlFor="minThreadReplies">Min Thread Replies: {minThreadReplies}</Label>
+          </div>
+          <Slider
+            id="minThreadReplies"
+            min={0}
+            max={10}
+            step={1}
+            value={[minThreadReplies]}
+            onValueChange={(values) => setMinThreadReplies(values[0])}
+          />
+        </div>
+        
+        <div className="space-y-2">
+          <div className="flex justify-between">
+            <Label htmlFor="maxThreadReplies">Max Thread Replies: {maxThreadReplies}</Label>
+          </div>
+          <Slider
+            id="maxThreadReplies"
+            min={1}
+            max={15}
+            step={1}
+            value={[maxThreadReplies]}
+            onValueChange={(values) => setMaxThreadReplies(values[0])}
+          />
+          <p className="text-xs text-muted-foreground">
+            Controls the range of AI responses generated in discussion threads.
+          </p>
+        </div>
       </div>
       
       <Button onClick={handleSave} className="w-full">Save Settings</Button>
