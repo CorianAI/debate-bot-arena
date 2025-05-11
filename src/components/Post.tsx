@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -175,6 +174,7 @@ const AIDebateSection: React.FC<AIDebateSectionProps> = ({ postId, forum }) => {
         forum?.systemPrompt || '',
         selectedProfiles.map(id => profiles[id]).filter(Boolean),
         settings,
+        forum,
         (profileId, response) => {
           const commentData = commentIds.find(c => c.profileId === profileId);
           if (commentData) {

@@ -2,7 +2,7 @@
 import { StateCreator } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import { AppState } from './types';
-import { Comment } from '@/types';
+import { Comment, Post } from '@/types';
 
 export interface CommentsSlice {
   comments: Record<string, Comment>;
