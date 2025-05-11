@@ -25,10 +25,10 @@ const Index: React.FC = () => {
   
   // Selected post view
   if (selectedPostId) {
-    const post = posts[selectedPostId];
+    const post = posts?.[selectedPostId];
     if (!post) return null;
     
-    const forum = forums[post.forumId];
+    const forum = forums?.[post.forumId];
     
     return (
       <div className="min-h-screen bg-background">
@@ -47,11 +47,11 @@ const Index: React.FC = () => {
   }
   
   // Posts list or forum selection view
-  const sortedPosts = Object.values(posts)
+  const sortedPosts = Object.values(posts || {})
     .filter(post => !selectedForumId || post.forumId === selectedForumId)
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   
-  const selectedForum = selectedForumId ? forums[selectedForumId] : null;
+  const selectedForum = selectedForumId && forums ? forums[selectedForumId] : null;
   
   return (
     <div className="min-h-screen bg-background">

@@ -36,7 +36,7 @@ const ForumSelector: React.FC = () => {
       </div>
       
       <div className="grid gap-4">
-        {Object.values(forums).map((forum) => (
+        {Object.values(forums || {}).map((forum) => (
           <Card
             key={forum.id}
             className={`p-4 cursor-pointer transition-colors ${

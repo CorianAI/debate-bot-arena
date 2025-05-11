@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -27,9 +28,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post, isCompact = false, for
     updateComment,
   } = useAppStore();
   
-  const commentCount = post.commentIds.length;
-  const topLevelComments = post.commentIds
-    .map(id => comments[id])
+  const commentCount = post.commentIds?.length || 0;
+  const topLevelComments = (post.commentIds || [])
+    .map(id => comments?.[id])
     .filter(comment => comment && comment.parentId === null);
 
   if (isCompact) {
@@ -37,7 +38,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, isCompact = false, for
       <Card className="mb-4 hover:shadow-md transition-shadow cursor-pointer" onClick={() => setSelectedPost(post.id)}>
         <CardHeader className="pb-2">
           <h2 className="text-lg font-bold">{post.title}</h2>
-          {post.authorId && profiles[post.authorId] && (
+          {post.authorId && profiles?.[post.authorId] && (
             <AIProfileCard profile={profiles[post.authorId]} isCompact className="mt-2" />
           )}
         </CardHeader>
@@ -68,7 +69,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, isCompact = false, for
       <Card className="mb-6">
         <CardHeader className="pb-2">
           <h1 className="text-2xl font-bold mb-2">{post.title}</h1>
-          {post.authorId && profiles[post.authorId] && (
+          {post.authorId && profiles?.[post.authorId] && (
             <AIProfileCard profile={profiles[post.authorId]} isCompact className="mt-2" />
           )}
           {post.isGenerating && (
@@ -143,7 +144,7 @@ const AIDebateSection: React.FC<AIDebateSectionProps> = ({ postId, forum }) => {
     updatePost,
   } = useAppStore();
   
-  const post = posts[postId];
+  const post = posts?.[postId];
   if (!post) return null;
   
   const toggleProfile = (profileId: string) => {
@@ -172,7 +173,7 @@ const AIDebateSection: React.FC<AIDebateSectionProps> = ({ postId, forum }) => {
       await generateMultipleResponses(
         post.title + '\n\n' + post.content,
         forum?.systemPrompt || '',
-        selectedProfiles.map(id => profiles[id]).filter(Boolean),
+        selectedProfiles.map(id => profiles?.[id]).filter(Boolean),
         settings,
         forum,
         (profileId, response) => {
@@ -203,7 +204,7 @@ const AIDebateSection: React.FC<AIDebateSectionProps> = ({ postId, forum }) => {
       </p>
       
       <div className="flex flex-wrap gap-2 mb-4">
-        {Object.values(profiles).map(profile => (
+        {Object.values(profiles || {}).map(profile => (
           <Button
             key={profile.id}
             type="button"
