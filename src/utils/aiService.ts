@@ -1,143 +1,147 @@
+import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
+import OpenRouter from '@openrouter/sdk';
+import { AIProfile, OpenAISettings, Forum } from '@/types';
 
-import { OpenAISettings, AIProfile, Forum, LLMProvider } from '@/types';
+const getModelName = (profile: AIProfile, settings: OpenAISettings) => {
+  return profile.model || settings.defaultModel;
+};
 
-export async function generateAIResponse(
+const callOpenAI = async (
   prompt: string,
   context: string,
-  aiProfile: AIProfile,
+  profile: AIProfile,
   settings: OpenAISettings,
   forum?: Forum
-): Promise<string> {
+) => {
+  const modelName = getModelName(profile, settings);
+  const apiKey = settings.providers[profile.endpoint || 'openai']?.apiKey || settings.apiKey;
+
+  const openai = new OpenAI({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+
+  const systemPrompt = forum?.systemPrompt || `You are ${profile.name}, ${profile.personality}. Your job is to participate in discussions and provide well-reasoned arguments.`;
+  const finalPrompt = `${systemPrompt}\n\nContext: ${context}\n\n${profile.prompt}\n\n${prompt}`;
+
+  const completion = await openai.chat.completions.create({
+    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: finalPrompt }],
+    model: modelName,
+    temperature: settings.temperature,
+    max_tokens: settings.maxTokens,
+  });
+
+  return completion.choices[0].message.content;
+};
+
+const callAnthropic = async (
+  prompt: string,
+  context: string,
+  profile: AIProfile,
+  settings: OpenAISettings,
+  forum?: Forum
+) => {
+  const modelName = getModelName(profile, settings);
+  const apiKey = settings.providers[profile.endpoint || 'openai']?.apiKey || settings.apiKey;
+
+  const anthropic = new Anthropic({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+
+  const systemPrompt = forum?.systemPrompt || `You are ${profile.name}, ${profile.personality}. Your job is to participate in discussions and provide well-reasoned arguments.`;
+  const finalPrompt = `${systemPrompt}\n\nContext: ${context}\n\n${profile.prompt}\n\n${prompt}`;
+
+  const completion = await anthropic.messages.create({
+    messages: [{ role: "user", content: finalPrompt }],
+    model: modelName,
+    max_tokens: settings.maxTokens,
+  });
+
+  return completion.content[0].text;
+};
+
+const callOpenRouter = async (
+  prompt: string,
+  context: string,
+  profile: AIProfile,
+  settings: OpenAISettings,
+  forum?: Forum
+) => {
+  const modelName = getModelName(profile, settings);
+  const apiKey = settings.providers[profile.endpoint || 'openai']?.apiKey || settings.apiKey;
+
+  const openrouter = new OpenRouter({ apiKey: apiKey, dangerouslyAllowBrowser: true });
+
+  const systemPrompt = forum?.systemPrompt || `You are ${profile.name}, ${profile.personality}. Your job is to participate in discussions and provide well-reasoned arguments.`;
+  const finalPrompt = `${systemPrompt}\n\nContext: ${context}\n\n${profile.prompt}\n\n${prompt}`;
+
+  const completion = await openrouter.chat.completions.create({
+    messages: [{ role: "system", content: systemPrompt }, { role: "user", content: finalPrompt }],
+    model: modelName,
+    temperature: settings.temperature,
+    max_tokens: settings.maxTokens,
+  });
+
+  return completion.choices[0].message.content;
+};
+
+export const generateAIResponse = async (
+  prompt: string,
+  context: string,
+  profile: AIProfile,
+  settings: OpenAISettings
+) => {
   try {
-    // Find the matching provider for this endpoint
-    const providers = Object.values(settings.providers);
-    let provider: LLMProvider | undefined;
-    
-    // First try to find exact match by endpoint name
-    if (aiProfile.endpoint) {
-      provider = providers.find(p => 
-        p.name.toLowerCase() === aiProfile.endpoint?.toLowerCase() ||
-        p.id === aiProfile.endpoint
-      );
+    // Handle null or undefined inputs safely
+    const safePrompt = (prompt || '').trim();
+    const safeContext = (context || '').trim();
+    const safePersonality = (profile?.personality || '').trim();
+
+    let response = '';
+    switch (profile.endpoint) {
+      case 'anthropic':
+        response = await callAnthropic(safePrompt, safeContext, profile, settings);
+        break;
+      case 'openrouter':
+        response = await callOpenRouter(safePrompt, safeContext, profile, settings);
+        break;
+      default:
+        response = await callOpenAI(safePrompt, safeContext, profile, settings);
+        break;
     }
     
-    // If no match, use the default provider
-    if (!provider) {
-      provider = providers.find(p => p.isDefault) || providers[0];
-    }
-    
-    if (!provider || !provider.apiKey) {
-      throw new Error(`No API key found for provider: ${aiProfile.endpoint || 'default'}`);
-    }
-
-    const systemPrompt = `${aiProfile.prompt}${forum ? `\n\nForum context: ${forum.systemPrompt}\nForum rules: ${forum.rules}` : ''} Your name is ${aiProfile.name}. You are participating in a discussion forum. Keep your response under 3 paragraphs and stay in character.`;
-
-    // Set endpoint from the provider
-    const endpoint = provider.endpoint;
-
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-
-    // Set appropriate headers based on provider type
-    if (provider.name.toLowerCase() === 'openai') {
-      headers['Authorization'] = `Bearer ${provider.apiKey}`;
-    } else if (provider.name.toLowerCase() === 'anthropic') {
-      headers['x-api-key'] = provider.apiKey;
-      headers['anthropic-version'] = '2023-06-01';
-    } else if (provider.name.toLowerCase() === 'openrouter') {
-      headers['Authorization'] = `Bearer ${provider.apiKey}`;
-      headers['HTTP-Referer'] = window.location.href;
-      headers['X-Title'] = 'AI Debate Forum';
-    } else {
-      // Generic provider, assume OpenAI-like API
-      headers['Authorization'] = `Bearer ${provider.apiKey}`;
-    }
-
-    // Format request body based on provider type
-    let requestBody: any;
-    if (provider.name.toLowerCase() === 'anthropic') {
-      requestBody = {
-        messages: [{
-          role: 'user',
-          content: `Context of discussion: ${context}\n\nRespond to this: ${prompt}`
-        }],
-        model: aiProfile.model || provider.models[0],
-        system: systemPrompt,
-        max_tokens: settings.maxTokens
-      };
-    } else {
-      // OpenAI and OpenRouter use the same format
-      requestBody = {
-        model: aiProfile.model || provider.models[0],
-        messages: [
-          {
-            role: 'system',
-            content: systemPrompt
-          },
-          {
-            role: 'user',
-            content: `Context of discussion: ${context}\n\nRespond to this: ${prompt}`
-          }
-        ],
-        temperature: settings.temperature,
-        max_tokens: settings.maxTokens
-      };
-    }
-
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error?.message || `Failed to generate response from ${provider.name}`);
-    }
-
-    const data = await response.json();
-    
-    // Parse response based on provider type
-    return provider.name.toLowerCase() === 'anthropic' 
-      ? data.content[0].text
-      : data.choices[0].message.content.trim();
+    // Make sure the response is always a string
+    return response || '';
   } catch (error) {
-    console.error(`Error generating ${aiProfile.name} response:`, error);
-    return `Error: ${error instanceof Error ? error.message : 'Failed to generate response'}`;
+    console.error(`Error generating ${profile?.name || 'AI'} response:`, error);
+    throw error;
   }
-}
+};
 
-export async function generateMultipleResponses(
+export const generateMultipleResponses = async (
   prompt: string,
   context: string,
   profiles: AIProfile[],
   settings: OpenAISettings,
-  forum?: Forum,
-  onProgress?: (profileId: string, response: string) => void
-): Promise<Record<string, string>> {
-  const responses: Record<string, string> = {};
-  
-  // Generate responses sequentially to avoid rate limiting
-  for (const profile of profiles) {
-    try {
-      const response = await generateAIResponse(prompt, context, profile, settings, forum);
-      responses[profile.id] = response;
-      if (onProgress) {
-        onProgress(profile.id, response);
+  forum: Forum | undefined,
+  onResponse: (profileId: string, response: string) => void
+) => {
+  await Promise.all(
+    profiles.map(async (profile) => {
+      try {
+        let response = '';
+        switch (profile.endpoint) {
+          case 'anthropic':
+            response = await callAnthropic(prompt, context, profile, settings, forum);
+            break;
+          case 'openrouter':
+            response = await callOpenRouter(prompt, context, profile, settings, forum);
+            break;
+          default:
+            response = await callOpenAI(prompt, context, profile, settings, forum);
+            break;
+        }
+        onResponse(profile.id, response);
+      } catch (error) {
+        console.error(`Error generating ${profile.name} response:`, error);
+        onResponse(profile.id, 'Sorry, I encountered an error generating this response.');
       }
-    } catch (error) {
-      console.error(`Error generating response for ${profile.name}:`, error);
-      responses[profile.id] = `Error: Failed to generate response`;
-    }
-  }
-  
-  return responses;
-}
-
-// Function to generate a random number of thread replies
-export function getRandomThreadCount(settings: OpenAISettings): number {
-  const min = settings.minThreadReplies || 2;
-  const max = settings.maxThreadReplies || 5;
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
+    })
+  );
+};

@@ -6,7 +6,7 @@ import { Comment, Post } from '@/types';
 
 export interface CommentsSlice {
   comments: Record<string, Comment>;
-  addComment: (content: string, postId: string, authorId: string, parentId?: string | null) => string;
+  addComment: (content: string, postId: string, authorId: string | 'user', parentId?: string | null) => string;
   updateComment: (id: string, comment: Partial<Comment>) => void;
   voteComment: (id: string, value: number) => void;
   deleteComment: (id: string) => void;
@@ -20,7 +20,7 @@ export const createCommentsSlice: StateCreator<AppState, [], [], CommentsSlice> 
     const newComment: Comment = {
       id,
       content,
-      authorId,
+      authorId: authorId === 'user' ? null : authorId, // null authorId means user-generated
       parentId,
       createdAt: new Date(),
       votes: 0,
@@ -34,12 +34,12 @@ export const createCommentsSlice: StateCreator<AppState, [], [], CommentsSlice> 
       };
 
       if (parentId === null) {
-        const post = state.posts[postId];
+        const post = state.posts?.[postId];
         if (!post) return { comments: newComments };
 
         const updatedPost = {
           ...post,
-          commentIds: [...post.commentIds, id]
+          commentIds: [...(post.commentIds || []), id]
         };
 
         return {
@@ -50,12 +50,12 @@ export const createCommentsSlice: StateCreator<AppState, [], [], CommentsSlice> 
           }
         };
       } else {
-        const parentComment = state.comments[parentId];
+        const parentComment = state.comments?.[parentId];
         if (!parentComment) return { comments: newComments };
 
         const updatedParentComment = {
           ...parentComment,
-          replyIds: [...parentComment.replyIds, id]
+          replyIds: [...(parentComment.replyIds || []), id]
         };
 
         return {
